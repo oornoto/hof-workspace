@@ -634,7 +634,47 @@ async function unlockCard(si){
   refreshAll();
 }
 
+function getNextSetInSection(si){
+  // Find which section this set is in and return the next set's id, or null
+  const s = SET_MAP[si];
+  const st = getSetStatus(si);
+  // Determine section
+  let sectionSets;
+  if(st === 'critical' || passedSets.has(si) && false) sectionSets = SETS.filter(s=>getSetStatus(s.id)==='critical');
+  else if(st === 'predecided') sectionSets = SETS.filter(s=>getSetStatus(s.id)==='predecided');
+  else if(st === 'open' && s && s.vintage_sampler) sectionSets = SETS.filter(s=>getSetStatus(s.id)==='open'&&s.vintage_sampler);
+  else if(st === 'open' && s && s.topps_sampler) sectionSets = SETS.filter(s=>getSetStatus(s.id)==='open'&&s.topps_sampler);
+  else sectionSets = SETS.filter(s=>getSetStatus(s.id)==='open'&&!s.vintage_sampler&&!s.topps_sampler);
+  // Apply current search/filter
+  const search = setsSearch.toLowerCase();
+  if(search) sectionSets = sectionSets.filter(s=>s.name.toLowerCase().includes(search));
+  if(setFilter==='vs') sectionSets = sectionSets.filter(s=>s.vintage_sampler);
+  if(setFilter==='ts') sectionSets = sectionSets.filter(s=>s.topps_sampler);
+  const idx = sectionSets.findIndex(s=>s.id===si);
+  if(idx === -1 || sectionSets.length <= 1) return null;
+  // Return next, or null if last
+  return idx < sectionSets.length - 1 ? sectionSets[idx+1].id : null;
+}
+
+function getNextPlayerInSection(name){
+  const st = getPlayerStatus(name);
+  const allNames = Object.keys(PI).sort((a,b)=>{
+    const wa=PI[a][0]?.war_rank||9999, wb=PI[b][0]?.war_rank||9999;
+    return wa-wb || a.localeCompare(b);
+  });
+  const search = playersSearch.toLowerCase();
+  let sectionPlayers = allNames.filter(n => {
+    if(search && !n.toLowerCase().includes(search)) return false;
+    const s = getPlayerStatus(n);
+    return s === st;
+  });
+  const idx = sectionPlayers.indexOf(name);
+  if(idx === -1 || sectionPlayers.length <= 1) return null;
+  return idx < sectionPlayers.length - 1 ? sectionPlayers[idx+1] : null;
+}
+
 async function passSet(si){
+  const nextSi = getNextSetInSection(si);
   history.push({ type:'pass_set', si });
   passedSets.add(si);
   document.getElementById('undo-btn').disabled = false;
@@ -642,6 +682,16 @@ async function passSet(si){
     user_id: currentUser.id, set_id: si, decision_type: 'pass_set'
   }, { onConflict: 'user_id,set_id,decision_type' });
   refreshAll();
+  // Navigate to next set or clear
+  if(nextSi !== null){
+    navigateTo('set', nextSi, SET_MAP[nextSi].name);
+  } else {
+    activeSetIdx = null; activePlayerName = null; activeCandKey = null;
+    clearSecondary();
+    document.getElementById('dec-primary').innerHTML='<div class="dec-empty"><div class="dec-empty-icon">⚾</div><div style="color:#334155;font-size:0.78rem;line-height:1.5">Select a set or player to continue</div></div>';
+    document.getElementById('dec-header-label').textContent='Select a set or player to begin';
+    renderConseq(null);
+  }
 }
 
 async function restoreSet(si){
@@ -651,6 +701,7 @@ async function restoreSet(si){
 }
 
 async function passPlayer(name){
+  const nextPlayer = getNextPlayerInSection(name);
   history.push({ type:'pass_player', name });
   passedPlayers.add(name);
   document.getElementById('undo-btn').disabled = false;
@@ -658,6 +709,16 @@ async function passPlayer(name){
     user_id: currentUser.id, player_name: name, decision_type: 'pass_player'
   }, { onConflict: 'user_id,set_id,decision_type' });
   refreshAll();
+  // Navigate to next player or clear
+  if(nextPlayer !== null){
+    navigateTo('player', nextPlayer, nextPlayer);
+  } else {
+    activeSetIdx = null; activePlayerName = null; activeCandKey = null;
+    clearSecondary();
+    document.getElementById('dec-primary').innerHTML='<div class="dec-empty"><div class="dec-empty-icon">⚾</div><div style="color:#334155;font-size:0.78rem;line-height:1.5">Select a set or player to continue</div></div>';
+    document.getElementById('dec-header-label').textContent='Select a set or player to begin';
+    renderConseq(null);
+  }
 }
 
 async function restorePlayer(name){
