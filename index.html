@@ -527,6 +527,11 @@ async function loadAll(){
   document.getElementById('st-top50-tot').textContent = Object.keys(PI).filter(n=>(PI[n][0]?.war_rank||9999)<=50).length;
   document.getElementById('st-vs-tot').textContent = SETS.filter(s=>s.vintage_sampler).length;
   document.getElementById('st-ts-tot').textContent = SETS.filter(s=>s.topps_sampler).length;
+
+  // Render lists now that all data is in memory
+  renderStatus();
+  renderSetsList();
+  renderPlayersList();
 }
 
 function buildPlayerIndex(){
