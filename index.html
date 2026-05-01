@@ -640,6 +640,7 @@ function showLoading(msg='Loading card data…'){
 function showApp(){
   document.getElementById('loading-screen').style.display='none';
   document.getElementById('main-app').style.display='flex';
+  if (window.location.hash === '#ranker') switchAppTab('ranker');
 }
 
 async function loadAll(){
